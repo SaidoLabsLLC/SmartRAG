@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smartrag"
+version = "0.1.0"
+description = "The retrieval engine that makes vector databases unnecessary."
+readme = "README.md"
+license = {text = "Proprietary"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Jesse Crawford", email = "jesse@saidolabs.com"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Indexing",
+]
+dependencies = [
+    "PyYAML>=6.0",
+    "PyMuPDF>=1.23.0",
+    "beautifulsoup4>=4.12.0",
+]
+
+[project.optional-dependencies]
+embeddings = [
+    "sentence-transformers>=2.2.0",
+    "sqlite-vec>=0.1.0",
+]
+cloud = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "httpx>=0.25.0",
+    "bcrypt>=4.0.0",
+    "python-multipart>=0.0.6",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "python-docx>=1.0.0",
+]
+
+[project.scripts]
+smartrag = "smartrag.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/SaidoLabsLLC/SmartRAG"
+Repository = "https://github.com/SaidoLabsLLC/SmartRAG"
+Issues = "https://github.com/SaidoLabsLLC/SmartRAG/issues"
+
+[tool.setuptools.packages.find]
+include = ["smartrag*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

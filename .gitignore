@@ -1,0 +1,47 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# SmartRAG runtime
+.smartrag/
+wiki.db
+dedup.json
+backlinks.json
+_index.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+/tmp/
+
+# Environment
+.env
+.env.local
+!.env.example
+credentials.json
+token.json
+api_keys.json
+knowledge/

@@ -1,0 +1,47 @@
+SmartRAG License
+Copyright (c) 2026 Saido Labs LLC. All rights reserved.
+
+This software is dual-licensed.
+
+================================================================================
+PART 1 — OPEN SOURCE (Apache License 2.0)
+================================================================================
+
+The core SmartRAG library is licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+
+================================================================================
+PART 2 — ADDITIONAL TERMS (Saido Labs LLC)
+================================================================================
+
+The following terms apply in addition to the Apache 2.0 License above:
+
+1. ATTRIBUTION REQUIRED
+   All copies, forks, or substantial portions of the Software must include
+   clear and visible attribution to Saido Labs LLC as the original author.
+   This notice and the full license text must be retained in all copies.
+
+2. NO MODIFICATION WITHOUT ATTRIBUTION
+   You may modify the Software for personal or internal use. Any public
+   distribution of modified versions must:
+   (a) Prominently credit Saido Labs LLC as the original author
+   (b) Clearly indicate that the version has been modified
+   (c) Not misrepresent the modified version as the original Software
+
+3. COMMERCIAL USE REQUIRES A PAID LICENSE
+   Commercial use — including but not limited to selling, sublicensing,
+   offering as a paid service, or embedding in a commercial product — requires
+   a separate commercial license from Saido Labs LLC.
+   Contact: jesse@saidolabs.com
+
+4. NO REDISTRIBUTION AS YOUR OWN
+   You may not fork, clone, or redistribute this Software (modified or
+   unmodified) and present it as your own work. All redistributions must
+   preserve this license and attribution.

@@ -1,0 +1,24 @@
+app = "smartrag"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SMARTRAG_KNOWLEDGE_DIR = "/data/knowledge"
+  SMARTRAG_PORT = "8080"
+  SMARTRAG_HOST = "0.0.0.0"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[mounts]
+  source = "smartrag_data"
+  destination = "/data/knowledge"
