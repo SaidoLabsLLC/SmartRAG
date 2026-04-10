@@ -122,6 +122,29 @@ class WebhookResponse(BaseModel):
 # --- Schema models ---------------------------------------------------------
 
 
+class FeedbackRequest(BaseModel):
+    query_id: int
+    score: float = Field(ge=0.0, le=1.0)
+    used_slugs: list[str] = Field(default_factory=list)
+
+
+class FeedbackStatsResponse(BaseModel):
+    total_queries: int = 0
+    feedback_rate: float = 0.0
+    avg_score: float | None = None
+    source_win_rates: dict[str, float] = Field(default_factory=dict)
+    tier_distribution: dict[str, int] = Field(default_factory=dict)
+
+
+class FlaggedDocumentsResponse(BaseModel):
+    flagged_documents: list[str] = Field(default_factory=list)
+
+
+class TuneResponse(BaseModel):
+    weights: dict[str, float] | None = None
+    status: str = "ok"
+
+
 class SchemaFieldRequest(BaseModel):
     field_name: str
     field_type: str
@@ -377,6 +400,65 @@ async def stats(request: Request):
         index_size_bytes=s["index_size_bytes"],
         categories=s.get("categories", []),
     )
+
+
+# ---------------------------------------------------------------------------
+# Feedback routes
+# ---------------------------------------------------------------------------
+
+
+@router.post("/feedback", response_model=MessageResponse)
+async def record_feedback(body: FeedbackRequest, request: Request):
+    """Record explicit feedback for a query result."""
+    auth: AuthResult = request.state.auth_result
+    rag = _get_tenant_rag(request, auth)
+    try:
+        rag.record_feedback(body.query_id, body.score, body.used_slugs or None)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Feedback recording failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+    return MessageResponse(message="Feedback recorded.")
+
+
+@router.get("/stats/retrieval", response_model=FeedbackStatsResponse)
+async def retrieval_stats(request: Request):
+    """Return feedback and retrieval statistics."""
+    auth: AuthResult = request.state.auth_result
+    rag = _get_tenant_rag(request, auth)
+    stats = rag.get_retrieval_stats()
+    if not stats:
+        return FeedbackStatsResponse()
+    # tier_distribution keys are ints from SQLite, convert to str for JSON
+    td = {str(k): v for k, v in stats.get("tier_distribution", {}).items()}
+    return FeedbackStatsResponse(
+        total_queries=stats.get("total_queries", 0),
+        feedback_rate=stats.get("feedback_rate", 0.0),
+        avg_score=stats.get("avg_score"),
+        source_win_rates=stats.get("source_win_rates", {}),
+        tier_distribution=td,
+    )
+
+
+@router.get("/stats/flagged", response_model=FlaggedDocumentsResponse)
+async def flagged_documents(request: Request):
+    """Return documents needing synopsis regeneration."""
+    auth: AuthResult = request.state.auth_result
+    rag = _get_tenant_rag(request, auth)
+    flagged = rag.get_flagged_documents()
+    return FlaggedDocumentsResponse(flagged_documents=flagged)
+
+
+@router.post("/tune", response_model=TuneResponse)
+async def tune_weights(request: Request):
+    """Trigger manual weight tuning."""
+    auth: AuthResult = request.state.auth_result
+    rag = _get_tenant_rag(request, auth)
+    new_weights = rag.tune_now()
+    if new_weights is None:
+        return TuneResponse(status="insufficient_data")
+    return TuneResponse(weights=new_weights, status="ok")
 
 
 # ---------------------------------------------------------------------------

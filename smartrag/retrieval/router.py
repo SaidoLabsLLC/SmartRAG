@@ -29,6 +29,10 @@ class TieredRetriever:
         self._config = config
         self._embeddings = embedding_index  # Optional: EmbeddingIndex for semantic search
 
+    def update_weights(self, weights: dict[str, float]) -> None:
+        """Update the ranking weights used by RRF merge."""
+        self._config.ranking_weights = weights
+
     def retrieve(self, query: str, top_k: int = 10) -> QueryResult:
         start = time.perf_counter()
         total_bytes = 0
@@ -67,11 +71,26 @@ class TieredRetriever:
 
         # Merge via RRF (hybrid ranking with configurable weights)
         sources = [mi_ranked]
+        source_names = ["master_index"]
         if fts_ranked:
             sources.append(fts_ranked)
+            source_names.append("fts5")
         if emb_ranked:
             sources.append(emb_ranked)
-        merged = rrf_merge(sources)
+            source_names.append("embeddings")
+        merged = rrf_merge(
+            sources,
+            weights=self._config.ranking_weights,
+            source_names=source_names,
+        )
+
+        # Build source_map: which source contributed each slug's top rank
+        source_map: dict[str, str] = {}
+        for idx, result_list in enumerate(sources):
+            name = source_names[idx]
+            for slug, _score in result_list:
+                if slug not in source_map:
+                    source_map[slug] = name
 
         # Select top-K candidates
         candidates = [slug for slug, _score in merged[:top_k]]
@@ -213,14 +232,22 @@ class TieredRetriever:
             except Exception:
                 pass
 
+        # Track backlink sources
+        for r in results:
+            if r.slug not in source_map:
+                source_map[r.slug] = "backlinks"
+
         # Sort by score descending, limit to top_k
         results.sort(key=lambda r: r.score, reverse=True)
         results = results[:top_k]
 
         elapsed_ms = (time.perf_counter() - start) * 1000
-        return QueryResult(
+        qr = QueryResult(
             results=results,
             query=query,
             total_ms=elapsed_ms,
             total_bytes_read=total_bytes,
         )
+        # Attach source map for feedback system
+        qr._source_map = source_map  # type: ignore[attr-defined]
+        return qr

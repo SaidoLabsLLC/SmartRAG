@@ -51,6 +51,24 @@ def main():
     stats_parser.add_argument(
         "--store", default="./knowledge", help="Knowledge store directory"
     )
+    stats_parser.add_argument(
+        "--feedback", action="store_true", default=False,
+        help="Show retrieval feedback statistics",
+    )
+
+    # tune
+    tune_parser = subparsers.add_parser("tune", help="Trigger manual weight tuning")
+    tune_parser.add_argument(
+        "--store", default="./knowledge", help="Knowledge store directory"
+    )
+
+    # flagged
+    flagged_parser = subparsers.add_parser(
+        "flagged", help="List documents needing synopsis regeneration"
+    )
+    flagged_parser.add_argument(
+        "--store", default="./knowledge", help="Knowledge store directory"
+    )
 
     # reindex
     reindex_parser = subparsers.add_parser("reindex", help="Rebuild all indexes")
@@ -188,15 +206,51 @@ def main():
             print(f"\n--- {len(results)} results ---")
 
     elif args.command == "stats":
-        stats = rag.stats
-        print(f"Documents:  {stats['document_count']}")
-        print(f"Index size: {stats['index_size_bytes']} bytes")
-        if stats.get("categories"):
-            print(f"Categories: {', '.join(sorted(stats['categories']))}")
+        if getattr(args, "feedback", False):
+            fb_stats = rag.get_retrieval_stats()
+            if not fb_stats:
+                print("Feedback is disabled or no data available.")
+            else:
+                print(f"Total queries:  {fb_stats['total_queries']}")
+                print(f"Feedback rate:  {fb_stats['feedback_rate']:.1%}")
+                avg = fb_stats.get("avg_score")
+                print(f"Avg score:      {avg:.2f}" if avg is not None else "Avg score:      N/A")
+                if fb_stats.get("source_win_rates"):
+                    print("Source win rates:")
+                    for src, rate in sorted(fb_stats["source_win_rates"].items()):
+                        print(f"  {src}: {rate:.1%}")
+                if fb_stats.get("tier_distribution"):
+                    print("Tier distribution:")
+                    for tier, count in sorted(fb_stats["tier_distribution"].items()):
+                        print(f"  Tier {tier}: {count}")
+        else:
+            stats = rag.stats
+            print(f"Documents:  {stats['document_count']}")
+            print(f"Index size: {stats['index_size_bytes']} bytes")
+            if stats.get("categories"):
+                print(f"Categories: {', '.join(sorted(stats['categories']))}")
 
     elif args.command == "reindex":
         count = rag.reindex()
         print(f"Reindexed {count} documents.")
+
+    elif args.command == "tune":
+        result = rag.tune_now()
+        if result is None:
+            print("Insufficient feedback data for tuning (need >= 50 positive queries).")
+        else:
+            print("Tuning complete. New weights:")
+            for src, w in sorted(result.items()):
+                print(f"  {src}: {w:.3f}")
+
+    elif args.command == "flagged":
+        flagged = rag.get_flagged_documents()
+        if not flagged:
+            print("No documents flagged for synopsis regeneration.")
+        else:
+            print(f"{len(flagged)} document(s) flagged:")
+            for slug in flagged:
+                print(f"  - {slug}")
 
     elif args.command == "export":
         _cmd_export(args, rag)

@@ -25,3 +25,6 @@ class SmartRAGConfig:
         "backlinks": 0.3,
     })
     self_tuning: bool = False
+    feedback: bool = True
+    feedback_anonymize: bool = False
+    tune_interval: int = 100

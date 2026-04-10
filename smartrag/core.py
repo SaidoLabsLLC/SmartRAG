@@ -103,7 +103,22 @@ class SmartRAG:
             embedding_index=self._embeddings,
         )
 
-        # 5. Create ingest pipeline
+        # 6. Feedback system (optional)
+        self._feedback = None
+        self._signal_detector = None
+        self._tuner = None
+        self._query_count = 0
+        if self._config.feedback:
+            from smartrag.feedback.store import FeedbackStore
+            from smartrag.feedback.signals import SignalDetector
+            from smartrag.feedback.tuner import RetrievalTuner
+
+            fb_path = os.path.join(self._path, ".smartrag", "feedback.db")
+            self._feedback = FeedbackStore(fb_path, anonymize=self._config.feedback_anonymize)
+            self._signal_detector = SignalDetector(self._feedback)
+            self._tuner = RetrievalTuner(self._config.ranking_weights)
+
+        # 7. Create ingest pipeline
         self._pipeline = IngestPipeline(self._store, self._config)
 
         # 6. Index state file for incremental reindex
@@ -158,7 +173,25 @@ class SmartRAG:
     def query(self, question: str, top_k: int | None = None) -> QueryResult:
         """Query the knowledge store. Returns ranked, cited results."""
         k = top_k or self._config.max_results
-        return self._retriever.retrieve(question, top_k=k)
+        result = self._retriever.retrieve(question, top_k=k)
+
+        if self._feedback:
+            query_id = self._feedback.log_query(result, anonymize=self._config.feedback_anonymize)
+            result.query_id = query_id
+            self._signal_detector.on_query(query_id, result)
+            self._query_count += 1
+            if self._config.self_tuning and self._query_count % self._config.tune_interval == 0:
+                new_weights = self._tuner.tune(self._feedback)
+                if new_weights:
+                    self._config.ranking_weights = new_weights
+                    self._retriever.update_weights(new_weights)
+                    # Fire webhook if available
+                    webhook_mgr = getattr(self, "_webhook_manager", None)
+                    tenant_id = getattr(self, "_tenant_id", "__global__")
+                    if webhook_mgr:
+                        webhook_mgr.fire(tenant_id, "weights_updated", {"weights": new_weights})
+
+        return result
 
     def search(
         self,
@@ -268,6 +301,36 @@ class SmartRAG:
         self._fts.rebuild(fts_articles)
         self._save_index_state(new_state)
         return changed_count if incremental else len(entries)
+
+    def record_feedback(
+        self, query_id: int, score: float, used_slugs: list[str] | None = None
+    ) -> None:
+        """Record explicit feedback for a query result."""
+        if not self._feedback:
+            raise RuntimeError("Feedback is disabled in this SmartRAG instance.")
+        self._feedback.record_feedback(query_id, score, used_slugs)
+
+    def get_retrieval_stats(self) -> dict:
+        """Return feedback and retrieval statistics."""
+        if not self._feedback:
+            return {}
+        return self._feedback.get_stats()
+
+    def get_flagged_documents(self) -> list[str]:
+        """Return slugs of documents needing synopsis regeneration."""
+        if not self._feedback:
+            return []
+        return self._feedback.get_flagged_documents()
+
+    def tune_now(self) -> dict[str, float] | None:
+        """Trigger manual weight tuning. Returns new weights or None."""
+        if not self._feedback or not self._tuner:
+            return None
+        new_weights = self._tuner.tune(self._feedback)
+        if new_weights:
+            self._config.ranking_weights = new_weights
+            self._retriever.update_weights(new_weights)
+        return new_weights
 
     @property
     def stats(self) -> dict:

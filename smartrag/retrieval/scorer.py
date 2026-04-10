@@ -91,18 +91,25 @@ def score_index_entry(
 def rrf_merge(
     result_lists: list[list[tuple[str, float]]],
     k: int = 60,
+    weights: dict[str, float] | None = None,
+    source_names: list[str] | None = None,
 ) -> list[tuple[str, float]]:
     """Reciprocal Rank Fusion merge of multiple ranked result lists.
 
     Each input is a list of (slug, score) tuples sorted by score descending.
+    If *weights* and *source_names* are provided, each list's contribution is
+    scaled by ``weights.get(source_name, 1.0)``.
     Returns merged list of (slug, rrf_score) sorted descending.
     """
     scores: dict[str, float] = {}
-    for result_list in result_lists:
+    for idx, result_list in enumerate(result_lists):
+        w = 1.0
+        if weights and source_names and idx < len(source_names):
+            w = weights.get(source_names[idx], 1.0)
         for rank, (slug, _original_score) in enumerate(result_list):
             if slug not in scores:
                 scores[slug] = 0.0
-            scores[slug] += 1.0 / (k + rank + 1)
+            scores[slug] += w * (1.0 / (k + rank + 1))
     return sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
 

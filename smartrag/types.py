@@ -14,6 +14,7 @@ class QueryResult:
     query: str
     total_ms: float
     total_bytes_read: int
+    query_id: int | None = None
 
 
 @dataclass
